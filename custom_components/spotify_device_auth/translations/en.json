@@ -1,0 +1,49 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add Spotify account",
+        "description": "These credentials are used to log this account into Spotify Connect speakers. If you sign in to Spotify with Google/Apple/Facebook, set a device password at https://www.spotify.com/account/set-device-password/ and use that.",
+        "data": {
+          "name": "Name",
+          "username": "Spotify username or email",
+          "password": "Spotify or device password",
+          "account_id": "Spotify account id (loginId)"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "An account with this name is already configured."
+    }
+  },
+  "services": {
+    "login": {
+      "name": "Log in",
+      "description": "Log a configured Spotify account into a Spotify Connect speaker. Returns the speaker's device id.",
+      "fields": {
+        "host": { "name": "Host", "description": "IP address or hostname of the speaker." },
+        "account": { "name": "Account", "description": "Name of the configured account to use. Optional if only one is configured." },
+        "port": { "name": "Port", "description": "Zeroconf port. Resolved via mDNS if omitted." },
+        "cpath": { "name": "Control path", "description": "Zeroconf control path. Resolved via mDNS if omitted." },
+        "version": { "name": "Protocol version", "description": "Zeroconf protocol version." }
+      }
+    },
+    "logout": {
+      "name": "Log out",
+      "description": "Sign the current user out of a Spotify Connect speaker.",
+      "fields": {
+        "host": { "name": "Host", "description": "IP address or hostname of the speaker." },
+        "port": { "name": "Port", "description": "Zeroconf port. Resolved via mDNS if omitted." },
+        "cpath": { "name": "Control path", "description": "Zeroconf control path. Resolved via mDNS if omitted." },
+        "version": { "name": "Protocol version", "description": "Zeroconf protocol version." }
+      }
+    },
+    "discover": {
+      "name": "Discover",
+      "description": "Scan the local network for Spotify Connect devices via mDNS.",
+      "fields": {
+        "timeout": { "name": "Timeout", "description": "Seconds to scan." }
+      }
+    }
+  }
+}

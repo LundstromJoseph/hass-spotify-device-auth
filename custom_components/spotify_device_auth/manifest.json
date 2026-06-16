@@ -1,0 +1,12 @@
+{
+  "domain": "spotify_device_auth",
+  "name": "Spotify Device Auth",
+  "version": "0.1.0",
+  "documentation": "https://github.com/LundstromJoseph/hass-spotify-device-auth",
+  "issue_tracker": "https://github.com/LundstromJoseph/hass-spotify-device-auth/issues",
+  "codeowners": ["@LundstromJoseph"],
+  "config_flow": true,
+  "dependencies": ["zeroconf"],
+  "requirements": ["pycryptodome>=3.20.0"],
+  "iot_class": "local_polling"
+}

@@ -1,0 +1,84 @@
+login:
+  name: Log in
+  description: >-
+    Log a configured Spotify account into a Spotify Connect speaker so it appears
+    in the Spotify app. Returns the speaker's device id.
+  fields:
+    host:
+      name: Host
+      description: IP address or hostname of the speaker.
+      required: true
+      example: "10.0.0.130"
+      selector:
+        text:
+    account:
+      name: Account
+      description: Name of the configured account to use. Optional if only one is configured.
+      example: speaker
+      selector:
+        text:
+    port:
+      name: Port
+      description: Zeroconf port. Resolved via mDNS if omitted.
+      example: 5356
+      selector:
+        number:
+          min: 1
+          max: 65535
+          mode: box
+    cpath:
+      name: Control path
+      description: Zeroconf control path (e.g. /zc). Resolved via mDNS if omitted.
+      example: /zc
+      selector:
+        text:
+    version:
+      name: Protocol version
+      description: Zeroconf protocol version. Resolved via mDNS / defaults to 1.0.
+      example: "1.0"
+      selector:
+        text:
+
+logout:
+  name: Log out
+  description: Sign the current user out of a Spotify Connect speaker (resetUsers).
+  fields:
+    host:
+      name: Host
+      description: IP address or hostname of the speaker.
+      required: true
+      example: "10.0.0.130"
+      selector:
+        text:
+    port:
+      name: Port
+      description: Zeroconf port. Resolved via mDNS if omitted.
+      selector:
+        number:
+          min: 1
+          max: 65535
+          mode: box
+    cpath:
+      name: Control path
+      description: Zeroconf control path. Resolved via mDNS if omitted.
+      selector:
+        text:
+    version:
+      name: Protocol version
+      description: Zeroconf protocol version.
+      selector:
+        text:
+
+discover:
+  name: Discover
+  description: Scan the local network for Spotify Connect devices via mDNS.
+  fields:
+    timeout:
+      name: Timeout
+      description: Seconds to scan.
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 30
+          mode: box
