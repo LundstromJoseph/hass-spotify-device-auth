@@ -7,6 +7,7 @@ Spotify app. Exposes services callable from scripts/automations.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 import voluptuous as vol
@@ -20,6 +21,7 @@ from homeassistant.core import (
     SupportsResponse,
 )
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.helpers import config_entry_oauth2_flow
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.typing import ConfigType
@@ -28,15 +30,23 @@ from . import zeroconf_login as zcl
 from .const import (
     CONF_ACCOUNT,
     CONF_ACCOUNT_ID,
+    CONF_CONTEXT_URI,
     CONF_CPATH,
+    CONF_DEVICE_ID,
     CONF_TIMEOUT,
+    CONF_URIS,
     CONF_VERSION,
     DEFAULT_DISCOVERY_TIMEOUT,
     DEFAULT_VERSION,
     DOMAIN,
+    PLAY_RETRY_ATTEMPTS,
+    PLAY_RETRY_DELAY,
     SERVICE_DISCOVER,
     SERVICE_LOGIN,
     SERVICE_LOGOUT,
+    SERVICE_PLAY,
+    SPOTIFY_DOMAIN,
+    SPOTIFY_PLAY_URL,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -51,6 +61,14 @@ LOGIN_SCHEMA = vol.Schema({**_DEVICE_FIELDS, vol.Optional(CONF_ACCOUNT): cv.stri
 LOGOUT_SCHEMA = vol.Schema(_DEVICE_FIELDS)
 DISCOVER_SCHEMA = vol.Schema(
     {vol.Optional(CONF_TIMEOUT, default=DEFAULT_DISCOVERY_TIMEOUT): vol.Coerce(float)}
+)
+PLAY_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_DEVICE_ID): cv.string,
+        vol.Exclusive(CONF_CONTEXT_URI, "what"): cv.string,
+        vol.Exclusive(CONF_URIS, "what"): vol.All(cv.ensure_list, [cv.string]),
+        vol.Optional(CONF_ACCOUNT): cv.string,
+    }
 )
 
 
@@ -159,6 +177,65 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         )
         return {"devices": devices}
 
+    def _spotify_entry(account: str | None) -> ConfigEntry:
+        """Pick the core Spotify integration entry whose OAuth token we borrow."""
+        entries = hass.config_entries.async_entries(SPOTIFY_DOMAIN)
+        loaded = [e for e in entries if e.state is ConfigEntryState.LOADED]
+        entries = loaded or entries
+        if not entries:
+            raise ServiceValidationError("The Spotify integration is not set up")
+        if account:
+            for entry in entries:
+                if account.lower() in (
+                    entry.title.lower(),
+                    (entry.unique_id or "").lower(),
+                ):
+                    return entry
+            raise ServiceValidationError(f"No Spotify account named '{account}'")
+        if len(entries) > 1:
+            names = ", ".join(sorted(e.title for e in entries))
+            raise ServiceValidationError(
+                f"Multiple Spotify accounts ({names}); specify 'account'"
+            )
+        return entries[0]
+
+    async def handle_play(call: ServiceCall) -> ServiceResponse:
+        """Start playback on a device via the Spotify Web API.
+
+        Reuses the core Spotify integration's OAuth token (auto-refreshed), so
+        no credentials live here. Unlike media_player.select_source this can
+        cold-start an idle device by targeting it with ?device_id=.
+        """
+        device_id: str = call.data[CONF_DEVICE_ID]
+        context_uri: str | None = call.data.get(CONF_CONTEXT_URI)
+        uris: list[str] | None = call.data.get(CONF_URIS)
+        if not context_uri and not uris:
+            raise ServiceValidationError("Provide either 'context_uri' or 'uris'")
+
+        entry = _spotify_entry(call.data.get(CONF_ACCOUNT))
+        implementation = (
+            await config_entry_oauth2_flow.async_get_config_entry_implementation(
+                hass, entry
+            )
+        )
+        oauth = config_entry_oauth2_flow.OAuth2Session(hass, entry, implementation)
+
+        body: dict = {"context_uri": context_uri} if context_uri else {"uris": uris}
+        url = f"{SPOTIFY_PLAY_URL}?device_id={device_id}"
+
+        last = ""
+        for attempt in range(PLAY_RETRY_ATTEMPTS):
+            resp = await oauth.async_request("PUT", url, json=body)
+            if resp.status in (200, 202, 204):
+                _LOGGER.debug("Started playback on %s (status %s)", device_id, resp.status)
+                return {"status": resp.status, "device_id": device_id}
+            last = f"{resp.status}: {(await resp.text()).strip()}"
+            # 404 = device not registered with Spotify yet (just logged in); retry.
+            if resp.status != 404:
+                break
+            await asyncio.sleep(PLAY_RETRY_DELAY)
+        raise HomeAssistantError(f"Spotify play failed ({last})")
+
     hass.services.async_register(
         DOMAIN, SERVICE_LOGIN, handle_login, schema=LOGIN_SCHEMA,
         supports_response=SupportsResponse.OPTIONAL,
@@ -170,6 +247,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.services.async_register(
         DOMAIN, SERVICE_DISCOVER, handle_discover, schema=DISCOVER_SCHEMA,
         supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_PLAY, handle_play, schema=PLAY_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
     )
     return True
 

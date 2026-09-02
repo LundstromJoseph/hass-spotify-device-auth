@@ -82,3 +82,36 @@ discover:
           min: 1
           max: 30
           mode: box
+
+play:
+  name: Play
+  description: >-
+    Start playback on a Spotify device via the Web API, borrowing the core
+    Spotify integration's OAuth token. Can cold-start an idle device (unlike
+    media_player.select_source). Pass either context_uri or uris.
+  fields:
+    device_id:
+      name: Device ID
+      description: Target Spotify device id (e.g. the id returned by the login action).
+      required: true
+      example: "a1b2c3d4e5f6..."
+      selector:
+        text:
+    context_uri:
+      name: Context URI
+      description: Playlist, album or artist URI to play.
+      example: "spotify:playlist:645EgtEZm0oBAAaK8gz8XS"
+      selector:
+        text:
+    uris:
+      name: Track URIs
+      description: List of track URIs to play (alternative to context_uri).
+      example: '["spotify:track:..."]'
+      selector:
+        object:
+    account:
+      name: Account
+      description: Which configured Spotify account's token to use. Optional if only one.
+      example: Joseph
+      selector:
+        text:
