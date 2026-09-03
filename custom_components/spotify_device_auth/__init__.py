@@ -149,8 +149,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                 tokenAuthInBrowser=False,
             )
             result = zc.Connect(
-                username=entry.data[CONF_USERNAME],
-                password=entry.data[CONF_PASSWORD],
+                username=entry.data.get(CONF_USERNAME, ""),
+                password=entry.data.get(CONF_PASSWORD, ""),
                 loginId=entry.data[CONF_ACCOUNT_ID],
             )
             info = zc.GetInformation()

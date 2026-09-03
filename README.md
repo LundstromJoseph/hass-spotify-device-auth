@@ -23,9 +23,7 @@ encrypted username/password blob, and the device logs itself into Spotify.
 3. Settings → Devices & Services → **Add Integration** → *Spotify Device Auth*,
    and enter:
    - **Name** – identifier you'll reference in scripts (e.g. `speaker`)
-   - **Username** – Spotify username/email
-   - **Password** – Spotify or device password
-   - **Account id (loginId)** – your Spotify account/user id
+   - **Account id (loginId)** – your Spotify user ID
 
 You can add multiple accounts; each becomes its own entry.
 

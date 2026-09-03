@@ -18,10 +18,6 @@ from .const import CONF_ACCOUNT_ID, DOMAIN
 STEP_USER_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_NAME): TextSelector(),
-        vol.Required(CONF_USERNAME): TextSelector(),
-        vol.Required(CONF_PASSWORD): TextSelector(
-            TextSelectorConfig(type=TextSelectorType.PASSWORD)
-        ),
         vol.Required(CONF_ACCOUNT_ID): TextSelector(),
     }
 )
