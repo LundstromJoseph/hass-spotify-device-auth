@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from urllib.parse import urlparse
 
 import voluptuous as vol
 from homeassistant.components import zeroconf as ha_zeroconf
@@ -129,37 +130,54 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async def handle_login(call: ServiceCall) -> ServiceResponse:
         entry = _select_entry(call.data.get(CONF_ACCOUNT))
         uri, version = await _resolve_uri(call)
-        session = async_get_clientsession(hass)
-        try:
-            info = await zcl.async_get_info(session, uri, version)
-            result = await zcl.async_add_user(
-                session,
-                uri,
-                version,
-                entry.data[CONF_USERNAME],
-                entry.data[CONF_PASSWORD],
-                entry.data[CONF_ACCOUNT_ID],
-                info,
+        
+        parsed = urlparse(uri)
+        host = parsed.hostname
+        port = parsed.port or 80
+        cpath = parsed.path
+        
+        def _sync_connect():
+            from spotifywebapipython.zeroconfapi import ZeroconfConnect
+            zc = ZeroconfConnect(
+                hostIpAddress=host,
+                hostIpPort=port,
+                cpath=cpath,
+                version=version,
+                useSSL=False,
+                tokenStorageDir=hass.config.config_dir,
+                tokenStorageFile=".storage/spotify_device_auth_tokens.json",
+                tokenAuthInBrowser=False,
             )
-        except Exception as err:  # noqa: BLE001 - surface as a HA service error
+            result = zc.Connect(
+                username=entry.data[CONF_USERNAME],
+                password=entry.data[CONF_PASSWORD],
+                loginId=entry.data[CONF_ACCOUNT_ID],
+            )
+            info = zc.GetInformation()
+            return {
+                "result": {
+                    "status": result.Status,
+                    "statusString": result.StatusString,
+                    "spotifyError": result.SpotifyError,
+                    "responseSource": "eSDK",
+                },
+                "id": info.DeviceId,
+                "name": info.RemoteName,
+                "brand": info.BrandDisplayName,
+                "model": info.ModelDisplayName,
+            }
+        
+        try:
+            result = await hass.async_add_executor_job(_sync_connect)
+        except Exception as err:
             raise HomeAssistantError(f"Spotify Connect login failed: {err}") from err
-        if str(result.get("status")) != "101":
-            raise HomeAssistantError(f"Spotify Connect addUser failed: {result}")
-        _LOGGER.debug(
-            "Logged %s into %s [%s %s id=%s]",
-            entry.title,
-            call.data[CONF_HOST],
-            info.get("brandDisplayName"),
-            info.get("modelDisplayName"),
-            info.get("deviceID"),
-        )
-        return {
-            "id": info.get("deviceID"),
-            "name": info.get("remoteName") or None,
-            "brand": info.get("brandDisplayName"),
-            "model": info.get("modelDisplayName"),
-            "result": result,
-        }
+        
+        if str(result["result"]["status"]) != "101":
+            raise HomeAssistantError(
+                f"Spotify Connect login failed: {result['result']}"
+            )
+        
+        return result
 
     async def handle_logout(call: ServiceCall) -> ServiceResponse:
         uri, version = await _resolve_uri(call)
